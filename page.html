@@ -1,0 +1,231 @@
+<title>Databáza objemov stavby</title>
+<link rel="stylesheet" href="style.css">
+<header>
+    <div class="brand">Objemy <span class="muted">– databáza objemov stavby</span> <span class="badge">skúšobné dáta</span> <span class="badge demo-badge demo-only-inline" id="demo-badge">statická ukážka</span></div>
+    <div id="stats" class="muted"></div>
+  </header>
+
+  <main>
+    <aside id="panel">
+      <nav class="tabs" role="tablist">
+        <button class="tab active" data-tab="tab-new" role="tab">Nový</button>
+        <button class="tab" data-tab="tab-cut" role="tab">Výrez</button>
+        <button class="tab no-demo" data-tab="tab-import" role="tab">Import</button>
+        <button class="tab" data-tab="tab-search" role="tab">Hľadať</button>
+        <button class="tab" data-tab="tab-balance" role="tab">Bilancia</button>
+        <button class="tab" data-tab="tab-export" role="tab">Export</button>
+      </nav>
+
+      <!-- ===================================================== IMPORT -->
+      <section id="tab-import" class="tabpane no-demo">
+        <p class="small muted">Import objemov z <b>Excelu</b> (údaje) a <b>DXF</b> (pôdorysy). Riadok a polygón sa spárujú
+          podľa <b>kľúča</b> – čísla objemu, ktoré je v DXF ako text vo vnútri uzavretej polyčiary, atribút bloku alebo názov hladiny.</p>
+        <p class="small"><a href="/import/template.xlsx">Stiahnuť šablónu Excelu</a> ·
+          vzor: <a href="/samples/import_vzor.xlsx" download>Excel</a> + <a href="/samples/import_vzor.dxf" download>DXF</a>
+          (<a href="/samples/import_vzor_v2.xlsx" download>opravená verzia Excelu</a>)</p>
+        <form id="import-form" class="grid2">
+          <label>Excel (.xlsx) *<input type="file" name="excel" accept=".xlsx,.xlsm" required></label>
+          <label>DXF (.dxf) *<input type="file" name="dxf" accept=".dxf" required></label>
+          <button class="primary full" type="submit">Načítať a skontrolovať</button>
+        </form>
+        <div id="imp-msg"></div>
+
+        <div id="imp-setup" hidden>
+          <details id="imp-mapping-box">
+            <summary>Priradenie stĺpcov <span id="imp-map-info" class="small muted"></span></summary>
+            <div class="grid2">
+              <label class="full">Hárok<select id="imp-sheet"></select></label>
+              <div id="imp-mapping" class="full grid2"></div>
+              <label class="full check"><input type="checkbox" id="imp-zdxf" checked> chýbajúce výšky doplniť z 3D polyčiary (z)</label>
+            </div>
+          </details>
+          <div id="imp-types"></div>
+          <button id="imp-revalidate" type="button" class="secondary">Znova skontrolovať</button>
+        </div>
+
+        <div id="imp-result" hidden>
+          <h2>Kontrola pred importom</h2>
+          <div id="imp-summary"></div>
+          <div id="imp-filter" class="btnrow tight"></div>
+          <div id="imp-rows"></div>
+          <div id="imp-unmatched"></div>
+          <div class="grid2 imp-commit">
+            <label>Kto importuje *<input id="imp-by" list="author-list"></label>
+            <div></div>
+            <button id="imp-commit" type="button" class="primary full">Importovať</button>
+          </div>
+        </div>
+        <div id="imp-done"></div>
+
+        <h2>História importov</h2>
+        <div id="imp-batches"></div>
+      </section>
+
+      <!-- ===================================================== BILANCIA -->
+      <section id="tab-balance" class="tabpane">
+        <form id="balance-form" class="grid3">
+          <label>SO<select name="so" id="bal-so"><option value="">všetky</option></select></label>
+          <label>Úsek<select name="section">
+            <option value="100">100 m</option><option value="250">250 m</option>
+            <option value="500" selected>500 m</option><option value="1000">1 km</option></select></label>
+          <label>Koeficient výkopu<input name="k" inputmode="decimal" value="1,00" title="napr. 0,90 – výkop sa po zhutnení zmenší"></label>
+        </form>
+        <div id="bal-tiles" class="tiles"></div>
+        <div id="bal-chart1" class="chart"></div>
+        <div id="bal-chart2" class="chart"></div>
+        <details class="tablebox"><summary>Tabuľka po úsekoch</summary><div id="bal-sections"></div></details>
+        <details class="tablebox"><summary>Podľa SO a typu</summary><div id="bal-types"></div></details>
+        <p id="bal-note" class="small muted"></p>
+        <button id="bal-xlsx" type="button">Stiahnuť bilanciu (XLSX)</button>
+      </section>
+
+      <!-- ===================================================== NOVÝ / DXF -->
+      <section id="tab-new" class="tabpane active">
+        <h2>1. Hranica objemu</h2>
+        <label class="drop" id="drop">
+          <input type="file" id="file" accept=".dxf">
+          <span><b>Nahrať DXF</b> – kliknite alebo pretiahnite súbor sem<br>
+            <span class="muted small">uzavreté polyčiary v S-JTSK (EPSG:5514), aj v blokoch / bunkách</span></span>
+        </label>
+        <details class="paste">
+          <summary>…alebo vložiť súradnice</summary>
+          <textarea id="coords" rows="4" placeholder="-446948.3 -1176597.3, -446955.2 -1176578.5, ...&#10;(dvojice x y oddelené čiarkou, bodkočiarkou alebo novým riadkom)"></textarea>
+          <button id="btn-coords" class="secondary">Použiť súradnice</button>
+        </details>
+        <p class="small muted sample-row">Na vyskúšanie: <button type="button" id="load-sample" class="secondary">Načítať vzorový DXF</button>
+          <a class="no-demo" href="/samples/novy_objem_sandbox.dxf" download>stiahnuť vzor</a></p>
+        <div id="upload-msg"></div>
+        <div id="candidates"></div>
+
+        <div id="boundary-box" hidden>
+          <div id="boundary-steps">
+            <h2>2. Kolízie hranice</h2>
+            <div id="check-summary"></div>
+            <div id="check-table"></div>
+
+            <h2>3a. Export výrezu</h2>
+            <button id="to-cut" type="button" class="secondary wide">Otvoriť ako výrez – posunúť, otočiť, zmeniť veľkosť a exportovať →</button>
+
+            <div class="demo-only msg info small">V statickej ukážke sa objemy neukladajú – kolízie, výrez a export fungujú. Ukladanie a import sú v plnej verzii (server s databázou).</div>
+            <h2 class="no-demo">3b. Uložiť ako nový objem</h2>
+            <form id="save-form" class="no-demo" autocomplete="off">
+              <label class="full">Názov *<input name="name" required></label>
+              <label>SO *<input name="so" list="so-list" required placeholder="SO 101"></label>
+              <label>KM<input name="km" inputmode="decimal" placeholder="12.350"></label>
+              <label class="full">Typ objemu *<select name="volume_type" id="type-select" required></select></label>
+              <label>Autor *<input name="author" list="author-list" required></label>
+              <label>Objem [m³] *<input name="volume_m3" inputmode="decimal" required></label>
+              <label>Max. výška [m Bpv]<input name="height_max" inputmode="decimal"></label>
+              <label>Min. výška [m Bpv]<input name="height_min" inputmode="decimal"></label>
+              <div class="full hint" id="volume-hint"></div>
+              <label class="full">Odkaz na súbor<input name="file_link" placeholder="\\server\projekty\...\objem.xlsx"></label>
+              <button type="submit" class="primary full">Uložiť do databázy a skontrolovať kolízie</button>
+            </form>
+          </div>
+          <div id="save-result"></div>
+        </div>
+      </section>
+
+      <!-- ===================================================== VÝREZ -->
+      <section id="tab-cut" class="tabpane">
+        <p class="small muted">Výrez určuje, čo sa exportuje. <b>Ťahaním</b> výrez posuniete,
+          <b>rohmi</b> zmeníte veľkosť, <b>krúžkom</b> nad ním ho otočíte. Presné hodnoty zadáte nižšie.</p>
+        <div class="btnrow">
+          <button id="cut-new" class="primary" type="button">Nový obdĺžnik</button>
+          <button id="cut-from-dxf" type="button" disabled title="Najprv nahrajte DXF a vyberte hranicu">Z hranice DXF</button>
+          <button id="cut-clear" type="button" disabled>Zrušiť výrez</button>
+        </div>
+        <div id="cut-box" hidden>
+          <div class="grid2">
+            <label>Šírka [m]<input id="cut-w" inputmode="decimal"></label>
+            <label>Výška [m]<input id="cut-h" inputmode="decimal"></label>
+            <label>Otočenie [°]<input id="cut-rot" inputmode="decimal"></label>
+            <label>Mierka [%]<input id="cut-scale" inputmode="decimal"></label>
+          </div>
+          <div class="btnrow tight">
+            <button type="button" data-rot="-5" title="otočiť doľava o 5°">⟲ 5°</button>
+            <button type="button" data-rot="5" title="otočiť doprava o 5°">⟳ 5°</button>
+            <button type="button" data-scale="0.9" title="zmenšiť o 10 %">− 10 %</button>
+            <button type="button" data-scale="1.1" title="zväčšiť o 10 %">+ 10 %</button>
+            <button type="button" id="cut-center" title="presunúť výrez do stredu mapy">Do stredu mapy</button>
+            <button type="button" id="cut-fit" title="priblížiť mapu na celý výrez">Ukázať výrez</button>
+          </div>
+          <div id="cut-info" class="small muted"></div>
+
+          <h2>Čo sa exportuje</h2>
+          <div class="seg" role="radiogroup">
+            <label><input type="radio" name="cut-clip" value="0" checked> celé objemy</label>
+            <label><input type="radio" name="cut-clip" value="1"> orezané výrezom</label>
+          </div>
+          <div id="cut-summary"></div>
+          <div id="cut-list"></div>
+
+          <h2>Stiahnuť</h2>
+          <div id="cut-export" class="fmt"></div>
+        </div>
+      </section>
+
+      <!-- ===================================================== HĽADAŤ -->
+      <section id="tab-search" class="tabpane">
+        <form id="search-form" class="grid2">
+          <label>SO<select name="so" id="so-select"><option value="">všetky</option></select></label>
+          <label>Typ<select name="type" id="type-filter"><option value="">všetky</option></select></label>
+          <label>km od<input name="km_from" inputmode="decimal"></label>
+          <label>km do<input name="km_to" inputmode="decimal"></label>
+          <label class="full">Text (názov, autor, odkaz)<input name="q" type="search"></label>
+          <label class="full check"><input type="checkbox" name="collisions_only" value="1"> len objemy s kolíziou</label>
+          <button class="primary full" type="submit">Hľadať</button>
+        </form>
+        <div id="results"></div>
+        <div id="detail"></div>
+      </section>
+
+      <!-- ===================================================== EXPORT -->
+      <section id="tab-export" class="tabpane">
+        <h2>Všetky kolízie v databáze</h2>
+        <p class="muted small">Všetky objemy, ktoré s niečím kolidujú, a plochy prekrytí.</p>
+        <div id="export-all" class="fmt"></div>
+        <h2>Kolízie jedného SO</h2>
+        <label>SO<select id="export-so"></select></label>
+        <div id="export-so-buttons" class="fmt"></div>
+        <h2>Čo obsahuje DXF</h2>
+        <ul class="small muted legend-list no-demo">
+          <li><code>OBJ_&lt;TYP&gt;</code> – obrysy objemov, hladina podľa typu</li>
+          <li><code>OBJ_&lt;TYP&gt;_3D</code> – 3D hranoly od min. po max. výšku (DXF 3D)</li>
+          <li><code>POPIS</code> – blok OBJEM_INFO so všetkými atribútmi</li>
+          <li><code>KOLIZIA</code> – plochy prekrytia (červené šrafy)</li>
+          <li><code>HRANICA</code> – hranica výrezu</li>
+        </ul>
+        <p class="small muted no-demo">SHP sa sťahuje ako ZIP. Do MicroStationu: <i>File ▸ Import ▸ Geospatial ▸ Shapefile</i>
+          (atribúty ako Item Types), alebo DXF otvoriť / pripojiť ako referenciu.</p>
+        <ul class="small muted legend-list demo-only">
+          <li><code>OBJ_&lt;TYP&gt;</code> – obrysy objemov v S-JTSK, hladina podľa typu, všetky údaje ako XDATA</li>
+          <li><code>POPIS</code> – popis objemu (číslo, SO, typ, objem)</li>
+          <li><code>KOLIZIA</code> – obrysy plôch prekrytia s popisom m²</li>
+          <li><code>HRANICA</code> – hranica výrezu</li>
+        </ul>
+        <p class="small muted demo-only">Ukážka vytvára DXF R12, GeoJSON v S-JTSK (pre QGIS) a CSV (pre Excel).
+          Plná verzia so serverom navyše SHP, GeoPackage, XLSX a 3D hranoly.</p>
+
+        <div class="no-demo">
+        <h2>Záloha databázy</h2>
+        <div id="backup-status" class="small"></div>
+        <button id="backup-run" type="button">Zálohovať teraz</button>
+        <p class="small muted">Automatickú dennú zálohu s odoslaním na e-mail nastavíte dvojklikom na
+          <code>ZALOHA_NASTAVENIE.cmd</code> v priečinku projektu.</p>
+        </div>
+      </section>
+    </aside>
+
+    <div id="map"></div>
+  </main>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+  <datalist id="so-list"></datalist>
+  <datalist id="author-list"></datalist>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.2/proj4.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/polygon-clipping@0.15.7/dist/polygon-clipping.umd.min.js"></script>
+  <script src="demo-api.js"></script>
+  <script src="app.js"></script>
